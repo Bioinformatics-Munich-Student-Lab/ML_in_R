@@ -82,7 +82,7 @@ Title: Introduction to Hands-on Machine Learning with R
     - Further Reading:
         - [Feature Engineering and Selection: A Practical Approach for Predictive Models](http://www.feat.engineering/)
 
-+ 20 mins buffer
+* 20 mins buffer
 
 (sums up to 3 hours)
 
