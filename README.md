@@ -33,7 +33,7 @@ Title: Introduction to Hands-on Machine Learning with R
 
 
 ## ML (20 min)
-7. Data split \\
+7. Data split 
     For generalizability, enough data for training but very large datasets may give minimal gains, smaller for computation speed, if features >= sample_size you need to increase sample size to identify consistent signals
     Simple sampling vs stratified sampling: Check for the y/response variable.
     Class imbalances an be remedied by
@@ -87,19 +87,19 @@ Closing (10 min)
 (sums up to 3 hours)
 
 # Dir Structure
-
-├── demos                               # All demos and tasks will be here
-│   ├── data                            # Data sets
-│   ├── demos.Rproj                     # Please use this to open Rstudio, sets the current dir as root
+```
+├── demos                               # All demos and tasks will be here 
+│   ├── data                            # Data sets 
+│   ├── demos.Rproj                     # Please use this to open Rstudio, sets the current dir as root 
 │   ├── linear_regression.R
 │   ├── task1_linreg_oktoberfest_files
 │   ├── task1_linreg_oktoberfest.pdf
 │   ├── task1_linreg_oktoberfest.Rmd
 │   ├── wine_quality.pdf
 │   └── wine_quality.Rmd
-├── images                              # Image collection to use in presentation
+├── images                              # Image collection to use in presentation 
 ├── LICENSE
 ├── README.md
-└── workshop.pptx                       # Workshop presentation to help with the workflow
-
+└── workshop.pptx                       # Workshop presentation to help with the workflow 
+```
 
