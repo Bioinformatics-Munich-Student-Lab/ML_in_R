@@ -1,6 +1,8 @@
 # ML_in_R
 Presentations, demos, tasks and data to use in the workshop "Introduction to Machine Learning in R"
 
+Directory Structure is [at the bottom](# Dir Structure):
+
 Time:       Afternoon - TBD
 Duration:   3 hours
 Venue:      CIP-Pool
@@ -83,3 +85,21 @@ Closing (10 min)
 + 20 mins buffer
 
 (sums up to 3 hours)
+
+# Dir Structure
+
+├── demos                               # All demos and tasks will be here
+│   ├── data                            # Data sets
+│   ├── demos.Rproj                     # Please use this to open Rstudio, sets the current dir as root
+│   ├── linear_regression.R
+│   ├── task1_linreg_oktoberfest_files
+│   ├── task1_linreg_oktoberfest.pdf
+│   ├── task1_linreg_oktoberfest.Rmd
+│   ├── wine_quality.pdf
+│   └── wine_quality.Rmd
+├── images                              # Image collection to use in presentation
+├── LICENSE
+├── README.md
+└── workshop.pptx                       # Workshop presentation to help with the workflow
+
+
