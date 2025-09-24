@@ -78,9 +78,9 @@ Title: Introduction to Hands-on Machine Learning with R
     Which step would PCA replace in the general procedure? -> "filter out non-informative features without manually removing them"
 
 ## Closing (10 min)
-    - Summarize
-    - Further Reading:
-        - [Feature Engineering and Selection: A Practical Approach for Predictive Models](http://www.feat.engineering/)
+- Summarize
+- Further Reading:
+    - [Feature Engineering and Selection: A Practical Approach for Predictive Models](http://www.feat.engineering/)
 
 * 20 mins buffer
 
