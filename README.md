@@ -8,7 +8,7 @@ Duration:   3 hours \
 Venue:      CIP-Pool \
 Capacity:   up to 20-30 participants
 
-Directory Structure is [at the bottom](# Dir Structure):
+Directory Structure is [at the bottom](#dir-Structure):
 
 # === Flow === #
 ## Opening (10 min)
