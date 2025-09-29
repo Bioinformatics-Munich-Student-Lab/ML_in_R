@@ -1,15 +1,14 @@
-# ML_in_R
-Presentations, demos, tasks and data to use in the workshop "Introduction to Machine Learning in R"
+# Introduction to Machine Learning with R - Train your first model with biological data sets
 
-Directory Structure is [at the bottom](# Dir Structure):
+Presentations, demos, tasks and data to use in the workshop:
 
 Date:       24.10.2025 \
 Time:       Afternoon - TBD (probably 13:00 - 16:00 ?) \
 Duration:   3 hours \
 Venue:      CIP-Pool \
-Capacity:   up to 20-30 participants \
+Capacity:   up to 20-30 participants
 
-Title: Introduction to Machine Learning with R - Train your first model with biological data sets
+Directory Structure is [at the bottom](# Dir Structure):
 
 # === Flow === #
 ## Opening (10 min)
