@@ -3,12 +3,13 @@ Presentations, demos, tasks and data to use in the workshop "Introduction to Mac
 
 Directory Structure is [at the bottom](# Dir Structure):
 
-Time:       Afternoon - TBD
-Duration:   3 hours
-Venue:      CIP-Pool
-Capacity:   up to 20-30 participants
+Date:       24.10.2025
+Time:       Afternoon - TBD (probably 13:00 - 16:00 ?) \\
+Duration:   3 hours \\
+Venue:      CIP-Pool \\
+Capacity:   up to 20-30 participants \\
 
-Title: Introduction to Hands-on Machine Learning with R
+Title: Introduction to Machine Learning with R - Train your first model with biological data sets
 
 # === Flow === #
 ## Opening (10 min)
