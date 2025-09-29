@@ -62,10 +62,10 @@ summary(), str(), skimr, dplyr::glimpse(), visdat...
 We can also employ histograms for all variables.
 
 ```{r}
-oktoberfest <- read_csv("data/oktoberfest_train.csv")
-oktoberfest
+oktoberfest_train <- read_csv("data/oktoberfest_train.csv")
+oktoberfest_train
 
-oktoberfest %>%
+oktoberfest_train %>%
   pivot_longer(!matches(c("year", "duration")), names_to = "variable", values_to = "value") %>%
   ggplot(aes(x = value)) +
   geom_histogram(bins = 30) +
@@ -77,7 +77,7 @@ For simplicity of the interpretation of the variables, we're not going to undert
 ### Missingness
 
 ```{r}
-oktoberfest %>%
+oktoberfest_train %>%
   # mark missing values
   is.na() %>%
   # cast as data frame again
@@ -107,7 +107,7 @@ As the correlation among the predictors increases, the Variance Inflation Factor
 This situation makes it difficult to infer the significance of the coefficients, even if they are true, and the extrapolation of the results.
 
 ```{r}
-oktoberfest %>%
+oktoberfest_train %>%
   # choose all predictor variables
   select(!matches(c("year", "duration"))) %>%
   # create the correlation matrix (values should be between -1 and 1)
@@ -133,8 +133,8 @@ Another advanced method would be dimension reduction techniques.
 
 We'll just remove the year and the duration, since it obviously does not make sense to use them as explanatory variables.
 
-```{r}
-oktoberfest <- oktoberfest %>%
+```{r remove-year-duration}
+oktoberfest_train <- oktoberfest_train %>%
   select(-year, -duration)
 ```
 
@@ -147,9 +147,8 @@ We will center and scale using the function `scale()`.
 
 ```{r}
 # Since data frames behave as lists, we can iterate by lapply()
-# but then we should cast it as data frame again
-scaled_oktoberfest <- oktoberfest %>%
-  mutate(across(!beer_consumption, scale))
+scaled_oktoberfest <- oktoberfest_train %>%
+  mutate(across(!beer_consumption, ~ as.numeric(scale(.))))
 ```
 
 ### Training / Fitting
@@ -170,37 +169,83 @@ abline(h = 0)
 
 We can evaluate the performance now on the test data!
 We'll use Root Mean Squared Error for this purpose.
+We should **filter** and **scale** the predictor similarly.
+Basically all the things we did to the training data set.
+But there is a crucial catch! We should avoid treatments
+that would cause **data leakage**, for example using mean of test set column, if we had done any imputation by taking column means or scaling test set with its own mean and standard deviation.
 
 ```{r}
-test_oktoberfest <- read_csv("data/oktoberfest_test.csv")
-# DO NOT FORGET TO FILTER AND SCALE THE PREDICTORS
-# basically all the things we did to the training data set, except any treatment
-# that would cause data leakage (for example using mean of test set column, if we had done
-# any imputation by taking column means)
-test_processed <- test_oktoberfest %>%
-  select(-c(year, duration)) %>%
-  mutate(across(!beer_consumption, scale))
+# get mean and standard deviation of the training set
+mean_sd <- oktoberfest_train %>%
+  select(-beer_consumption) %>%
+  mutate(across(everything(), as.numeric)) %>%
+  summarise(across(everything(),
+                   list(mean = mean, sd = sd))) 
+
+oktoberfest_test <- read_csv("data/oktoberfest_test.csv")
+
+test_processed <- oktoberfest_test %>%
+  select(-c(year, duration, beer_consumption)) %>%
+  mutate(across(everything(),
+    ~ (.- mean_sd[[paste0(cur_column(), "_mean")]]) /
+       mean_sd[[paste0(cur_column(), "_sd")]]
+  ))
 
 predictions <- predict(mlr_model_all, newdata = test_processed)
-rmse = sqrt(mean((test_oktoberfest$beer_consumption - predictions)^2))
+rmse = sqrt(mean((oktoberfest_test$beer_consumption - predictions)^2))
 rmse
 ```
 
-### Summarizing using tidymodels!
+Can you spot on a crucial mistake that we've made in the 
+
+### Demo: Summarizing using tidymodels!
 
 That was a long journey so far.
 We should always keep in mind to do the same preprocessing steps done on the training set also on the test set, and avoid data leakage in doing so.
 Wouldn't it much easier to apply these steps in a more structured and organized way?
 Here, let us introduce the `tidymodels` framework, which follows the conventions of `tidyverse`.
 Similarly, it also consists of multiple packages that help in different aspects of modelling:
-* parsnip | training models
+* rsample | data partition
 * recipes | preprocessing
-* 
+* parsnip | training models
+* workflows | step-wise pipelining
+* tune | optimizing hyperparameters
+* yardstick | evaluate performance
+* broom | formatting
+* dials | tuning parameter grids
 
 ```{r}
+library(tidymodels)
+
 train_set <- read_csv("data/oktoberfest_train.csv")
-recipe <- recipe(train_set) %>%
-  update_role(year, new_role = "ID")
+test_set <- read_csv("data/oktoberfest_test.csv")
+
+          # determine your target and predictor(s)
+recipe <- recipe(beer_consumption ~ ., data = train_set) %>%
+  update_role(year, new_role = "ID") %>%          # year can be used as an ID
+  update_role(duration, new_role = "ignore") %>%  # do not use duration as a predictor
+  step_normalize(all_predictors())                # scale and center
+
+# determine modelling "machine"
+linear_modeller <- linear_reg() %>% 
+  set_engine("lm")
+
+wf <- workflow() %>%
+  add_model(linear_modeller) %>%
+  add_recipe(recipe)
+
+# Fitting on training set
+fit <- wf %>% fit(data = train_set)
+
+# Prediction on test_set
+preds <- predict(fit, new_data = test_set) %>%
+  bind_cols(test_set)
+
+# evaluation
+metrics <- preds %>%
+  metrics(truth = beer_consumption, estimate = .pred)
+
+metrics
   
 ```
 

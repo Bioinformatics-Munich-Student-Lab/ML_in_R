@@ -80,6 +80,9 @@ We choose the alcohol content here. You're encouraged to try out other predictor
 ```{r}
 model_alcohol <- lm(quality ~ alcohol, data = wine_white)
 summary(model_alcohol)
+
+par(mfrow=c(2,2), mar = c(4, 4, 2, 1)) # to fit four plots in 2x2 window
+plot(model_alcohol)
 ```
 
 How would this appear on 2D?
