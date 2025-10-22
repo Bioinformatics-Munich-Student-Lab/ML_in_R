@@ -1,0 +1,186 @@
+---
+title: "Classification Task 1 Hepatitis"
+author: "Tolga Tabanli"
+date: "2025-10-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+```
+
+## Introduction
+
+In this data set, we are trying to predict the survival class of patients
+based on a couple of medical predictors.
+
+Since, the data have missing values, we indicate if and which symbol
+is used for it with `na = "?"` while reading.
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(naniar)
+
+data <- read_csv("data/hepatitis.data", col_names = c(
+  "class", "age", "sex", "steroid", "antivirals", "fatigue", "malaise",
+  "anorexia", "liver_big", "liver_firm", "spleen_palpable", "spiders",
+  "ascites", "varices", "bilirubin", "alk_phosphate", "sgot", "albumin",
+  "protime", "histology"
+), na = "?")
+data
+```
+
+## EDA
+
+First of all, this data set seems to have missing values.
+View the missingness in the data set by using `vis_miss` from the package naniar.
+
+```{r task1}
+vis_miss(data)
+```
+
+Have a look at the distribution of numeric features.
+Use `pivot_longer` to bring the numeric features under a nwe column named "predictors"
+with their values under "value".
+Draw histograms for each. Hint: Use `aes(x = value)` for data mapping and
+`facet_wrap` with `scales = "free"` to show all variables facetted in one plot grid design.
+
+```{r task2}
+data %>%
+  #mutate(across(c(alk_phosphate, bilirubin, sgot), log)) %>%
+  pivot_longer(cols = where(is.numeric), names_to = "predictors", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram() +
+  facet_wrap(~ predictors, scales = "free")
+```
+
+### Data split
+
+Before modelling and data split,
+cast the outcome column as factor since it's a *class*:
+
+```{r task3}
+data$class <- as.factor(data$class)
+```
+
+Then proceed with the data split, setting seed to 2025.
+
+```{r task4}
+set.seed(2025)
+split <- initial_split(data, prop = 0.7)
+training_set <- training(split)
+testing_set <- testing(split)
+```
+
+### Modelling
+
+We will use random forests as our prediction model and tune each three hyperparameter.
+
+We should account for the missingness in this data set.
+The procedure where we "fill out" the missingness is called **imputation**.
+There are a couple of approaches to filling these missing cells.
+A simple one is to use column statistics such as the mean of the column.
+On the other hand, we can use another ML algorithm to replace the missingness:
+For example, KNN identifies the closest data points, the neighbours, of the observation
+where we have a missing value, and fills it with the average of its neighbours' values
+if numerical or with the most frequent one if categorical.
+We'll compare the imputation approach with another model, where we drop the observations with missing values.
+We'll take on a transform-then-impute approach.
+
+Your task is:
+
+1. Create the two recipes for no-imputation vs imputation.
+2. You may optionally transform the right-skewed variables with log-transform.
+3. Specify the model, setting all three hyperparameters of random forest for tune with `tune()`.
+Remember to set the importance in `set_engine()` to later be able to investigate the variable importance.
+4. Create the two workflows.
+5. Set seed to 2025, create the parameter grid and CV-fold. Tune both workflows.
+6. Plot the tuning results with `autoplot()`.
+
+```{r task5}
+# recipe dropping missing observations
+recipe_drop_missing <- recipe(class ~ ., data = training_set) %>%
+  step_naomit() %>%
+  step_log(alk_phosphate, bilirubin, sgot)
+
+# recipe for KNN imputation
+recipe_imputation <- recipe(class ~ ., data = training_set) %>%
+  step_log(alk_phosphate, bilirubin, sgot) %>%
+  step_impute_knn(all_predictors())
+  
+
+# model
+rf <- rand_forest(mtry = tune(), trees = tune(), min_n = tune()) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("classification")
+
+# Model with dropping missing observations
+wf_basic <- workflow() %>%
+  add_recipe(recipe_drop_missing) %>%
+  add_model(rf)
+
+# Model with imputation
+wf_imputation <- workflow() %>%
+  add_recipe(recipe_imputation) %>%
+  add_model(rf)
+
+# === Tuning
+set.seed(2025)
+folds <- vfold_cv(training_set, v = 10)
+par_grid <- grid_regular(mtry(range = c(3, 6)),
+                         min_n(range = c(10, 100)),
+                         trees(range = c(5, 50)),
+                         levels = c(3, 3, 3))
+
+tuned_basic <- tune_grid(wf_basic,
+                         resamples = folds,
+                         grid = par_grid,
+                         metrics = metric_set(accuracy, roc_auc))
+tuned_imputation <- tune_grid(wf_basic,
+                              resamples = folds,
+                              grid = par_grid,
+                              metrics = metric_set(accuracy, roc_auc))
+
+autoplot(tuned_basic)
+autoplot(tuned_imputation)
+```
+
+Next, we're going to finalize our workflow.
+1. Get the best parameters for each workflow.
+2. Finalize the workflows.
+3. Fit them using the data split and the metrics of accuracy and roc_auc.
+4. Collect/show the metrics.
+
+```{r task6}
+best_pars_basic <- select_best(tuned_basic, metric = "roc_auc")
+best_pars_imputation <- select_best(tuned_imputation, metric = "roc_auc")
+
+final_wf_basic <- finalize_workflow(wf_basic, best_pars_basic)
+final_wf_imputation <- finalize_workflow(wf_imputation, best_pars_imputation)
+
+fit_basic <- last_fit(final_wf_basic, split = split, metrics = metric_set(accuracy, roc_auc))
+fit_imputation <- last_fit(final_wf_imputation, split = split, metrics = metric_set(accuracy, roc_auc))
+
+collect_metrics(fit_basic)
+collect_metrics(fit_imputation)
+```
+
+Optionally, investigate the variable importances by using `vip()`.
+Hint: `vip()` takes a fitted pure model as an argument -> You'll need to extract
+the parsnip model and get "fit" object for this.
+
+```{r task7}
+library(vip)
+
+fit_basic %>%
+  extract_fit_parsnip() %>%
+  pluck("fit") %>%
+  vip()
+
+fit_imputation %>%
+  extract_fit_parsnip() %>%
+  pluck("fit") %>%
+  vip()
+```
+

@@ -3,55 +3,48 @@
 Presentations, demos, tasks and data to use in the workshop:
 
 Date:       24.10.2025 \
-Time:       Afternoon - TBD (probably 13:00 - 16:00 ?) \
+Time:       13:00 - 16:00 \
 Duration:   3 hours \
 Venue:      CIP-Pool \
-Capacity:   up to 20-30 participants
+Capacity:   up to 20 participants
 
 Directory Structure is [at the bottom](#dir-Structure):
 
 # === Flow === #
 ## Opening (10 min)
 1. Purpose and Outcomes:
-    1) Basics of machine learning: data split, feature handling, model evaluation, cross-validation, data leakage
-    2) Introduce structured toolkit for ML with a 
-    3) why R -> community, leader in statistical analysis and visio, packages, abstraction, easy and quick to learn and apply
-2. References to
-    - R for Data Science (Wickham, Cetinkaya-Rundel and Grolemund)
-    - Hands-On Machine Learning with R (Boehmke & Greenwell, 2020)
-    - Tidy Modeling with R (Kuhn & Silge, 2023)
+2. References to fundamental books
 3. Cheat sheets for tidyverse as handout
     - Group participants based on prior knowledge?
 
 ## Intro (20 min)
-4. Data structures in R, functions, flow-control, ggplot2, data reading and handling
-5. Introduction of a general workflow:
-    - data (split) -> explore -> (preprocess) -> model -> evaluate -> interpret
-6. Introduction of the example data that will be used.
+4. tidyverse refresher
+5. Introduction of the example data that will be used.
     - For more info, see the presentation (.pptx)
     - TODO: [Add Medical Condition Prediction Dataset](https://www.kaggle.com/datasets/marius2303/medical-condition-prediction-dataset)
 
 
 ## ML (20 min)
-7. Data split 
+6. Modelling
+7. tidymodels
+8. Validation
     For generalizability, enough data for training but very large datasets may give minimal gains, smaller for computation speed, if features >= sample_size you need to increase sample size to identify consistent signals
     Simple sampling vs stratified sampling: Check for the y/response variable.
     Class imbalances an be remedied by
         up-sampling: create rare class instances by repetition or bootstrapping
         down-sampling: choose a subsample of abundant class to match the size of rare class.
-8. Evaluation
+9. Evaluation
     - Chapter 2.6 of *Hands-On ML with R​*
 
 ## Demo & Task Phase
 9. Regression (30 min)
     **Key words:** predictor & target, coefficients, intercept, slope, residuals, RMSE, overfit/underfit
-    **R:** lm(), summary(), predict()
     
-    **Demo_1:** Linear regression of wine quality on chemical properties
+    **Demo_1:** Wine quality
     
     **Task_1:** Oktoberfest Detective
     
-    **Task_2:** TODO # this should be a basic medical data **with some missing values** to show **imputation**
+    **Task_2:** Abalone age
 
     ----- Break (10 min) -----
 
@@ -61,9 +54,11 @@ Directory Structure is [at the bottom](#dir-Structure):
                 
     **R:** glm(), rpart(), caret::confusionMatrix() or table()
     
-    **Demo:** TODO
+    **Demo:** Agaricus lepiota
     
-    **Task:** TODO # Use Medical Condition Prediction Dataset
+    **Task:** Medical Condition Dataset
+    **Task:**
+
 
 11. Clustering/PCA (30 min)
     **Key words:** unsupervised learning, distance metrics (Euclidean, Manhattan), k-means, dendrogram,

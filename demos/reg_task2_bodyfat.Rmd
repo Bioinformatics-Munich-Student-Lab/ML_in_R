@@ -1,0 +1,48 @@
+---
+title: "Regression Task2 Bodyfat"
+author: "Tolga Tabanli"
+date: "2025-10-15"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+```
+
+## R Markdown
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+
+data <- read.table("data/bodyfat.data")
+names(data) <- c("density", "percent_body_fat", "age", "weight", "height",
+                 "neck_circumference", "chest_circumference", "abdomen_circumference",
+                 "hip_circumference", "thigh_circumference", "knee_circumference",
+                 "ankle_circumference", "biceps_circumference", "forearm_circumference",
+                 "wrist_circumference")
+```
+
+```{r}
+data %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram() +
+  facet_wrap(~ variable, scales = "free")
+```
+
+### Missingness and collinearity
+
+```{r}
+data %>%
+  cor() %>%
+  corrplot::corrplot()
+```
+
+
+### Modelling
+
+```{r}
+
+```
+
