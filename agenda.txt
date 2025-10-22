@@ -1,0 +1,7 @@
+13:00 - 13:10 BMSL & Opening
+13:10 - 13:40 Introduction and tidymodels
+13:40 - 14:20 Demos & Tasks 1 Regression
+--- Break (10 min) ---
+14:30 - 15:10 Demos & Tasks 2 Classification
+15:10 - 15:50 Demos & Tasks 3 PCA
+15:50 - 16:00 Closing, Q&A

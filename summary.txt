@@ -1,0 +1,40 @@
+Content
+
+Opening (10 min)
+
+Intro (10 min)
+- tidyverse refresher
+- Introduction of the data sets
+
+ML (20 min)
+- Modelling
+- tidymodels
+- Validation
+- Evaluation
+
+Demos & Tasks
+- Regression (30 min)
+    **Demo_1:** Wine quality
+    **Task_1:** Oktoberfest Detective
+    **Task_2:** Abalone age
+
+----- Break (10 min) -----
+
+- Classification (40 min)
+    **Demo:** Agaricus lepiota
+    **Task:** Medical Condition Dataset
+    **Task**
+
+- Clustering/PCA (30 min)
+    **Demo:** TODO
+    **Task:** TODO
+
+Closing (10 min)
+- Summarize
+- Further Reading:
+
+* 20 mins buffer
+
+(sums up to 3 hours)
+
+

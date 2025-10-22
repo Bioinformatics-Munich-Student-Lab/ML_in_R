@@ -1,0 +1,23 @@
+Dear participant of the workshop "Intro to ML in R",
+
+we are glad to host you at Amalienstraße 17 this Saturday on 25.10.2025 at 13:00 for the workshop.
+Here is the schedule, however the durations may and most probably will deviate
+from the expected time slots according to the participation, questions, and technical issues:
+
+13:00 - 13:10 BMSL & Opening
+13:10 - 13:40 Introduction and tidymodels
+13:40 - 14:20 Demos & Tasks 1 Regression
+--- Break (10 min) ---
+14:30 - 15:10 Demos & Tasks 2 Classification
+15:10 - 15:50 Demos & Tasks 3 PCA
+15:50 - 16:00 Closing, Q&A
+
+You are kindly reminded and encouraged to bring a laptop with RStudio installed in advance.
+In the workshop, we will use dplyr and ggplot2 from the tidyverse metapackage for data manipulation and visualization.
+So it is advised to have these tidyverse cheatsheets at hand:
+    https://rstudio.github.io/cheatsheets/html/data-transformation.html
+    https://rstudio.github.io/cheatsheets/html/data-visualization.html
+
+For a smooth begin, it is also worth to have installed the following packages beforehand:
+    "tidyverse", "tidymodels", "vip", "corrplot", "naniar"
+
