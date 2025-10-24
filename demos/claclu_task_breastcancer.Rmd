@@ -1,0 +1,243 @@
+---
+title: 'Cla&Clu: Myocardial infarction'
+author: "Tolga Tabanli"
+date: "2025-10-22"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup and Data
+
+```{r, message=F}
+library(tidyverse)
+library(tidymodels)
+
+data <- read_csv("data/breast-cancer-wisconsin.data",
+                 na = "?",
+                 col_names = c("id_number", "clump_thickness",
+                               "uniformity_of_cell_size", "uniformity_of_cell_shape",
+                               "marginal_adhesion", "single_epithelial_cell_size", 
+                               "bare_nuclei", "bland_chromatin", "normal_nucleoli",
+                               "mitoses", "class"))
+data$class <- as.factor(data$class)
+```
+
+### Visualize data
+
+```{r}
+data %>%
+  pivot_longer(cols = -c(id_number, class), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value, fill = class)) +
+  geom_histogram() +
+  facet_wrap(~ variable, scales = "free")
+```
+
+### Visualize missingness
+
+Use `vis_miss` from naniar package.
+
+```{r}
+library(naniar)
+
+vis_miss(data)
+```
+
+### Visualize correlations
+
+Plot correlation plot using `corrplot()` from {corrplot}.
+
+```{r}
+data %>%
+  select(-id_number, -class) %>%
+  cor() %>%
+  corrplot::corrplot()
+```
+
+
+### Clustering
+
+We are going to apply PCA to reduce the dimensionality of the data to
+two main axes that capture the most variance.
+For the clustering we are going to use all the data, since
+we are not using the outcome or predict anything to test afterwards.
+Your task is:
+
+1. First create a recipe with formula `~ .`. This just means that we do not focus on any outcome variable yet and use all the variables.
+2. We have an id column named **id_number** and we want to ignore the outcome.
+Update their roles accordingly.
+3. Normalize all the predictors.
+4. Impute missing values using kNN.
+5. Apply PCA to get 4 principal components.
+6. *Prepare* the recipe and *bake* on the data. The components will be named as PC1, PC2, etc.
+7. Plot the principal components in pairs using the outcome as the color of the points.
+**Hint**: We can plot principal components pairwise using `ggpairs()` from the
+GGally package:
+
+```{r, eval = F}
+library(GGally)
+
+pc_axes <- paste0("PC", 1:4)
+ggpairs(
+  data = YOUR_DATA_WITH_PC,
+  columns = pc_axes,
+  mapping = aes(color = as.factor(TARGET))
+)
+```
+
+
+
+```{r}
+library(GGally)
+library(factoextra)
+
+# Recipe
+recipe <- recipe(~ ., data = data) %>%
+  update_role(id_number, new_role = "id") %>%
+  update_role(class, new_role = "ignore") %>%
+  step_normalize(all_predictors()) %>%
+  step_impute_knn(all_predictors(), neighbors = 10) %>%
+  step_pca(all_numeric_predictors(), num_comp = 10)
+
+# Prepare and bake the data
+prep_data <- prep(recipe, training = data)
+baked_data <- prep_data %>%
+  bake(new_data = data)
+
+## plot pairwise PCs using ggpairs()
+pc_axes <- paste0("PC", 1:4)
+ggpairs(
+  baked_data,
+  columns = pc_axes,
+  mapping = aes(color = as.factor(class))
+)
+
+# extract the "res" object from third step
+pca_model <- prep_data$steps[[3]]$res
+
+# Scree plot using fviz_eig()
+fviz_eig(pca_model, addlabels = TRUE)
+
+# == Biplot ==
+# we need the original data points as matrix:
+pca_model$x <- baked_data %>%
+  select(starts_with("PC")) %>%
+  as.matrix()
+
+fviz_pca_biplot(pca_model, 
+                col.ind = data$class,
+                label = "var", 
+                repel = TRUE)
+```
+
+Next, calculate the k-means clusters using the base `kmeans()`.
+Example:
+
+```{r, eval=F}
+your_kmeans_object <- kmeans(YOUR_DATA[, c("col1", "col2")],
+                             centers = HOW_MANY_CLUSTERS)
+your_kmeans_clusters <- your_kmeans_object$cluster
+```
+
+and then draw two plots with PC1 and PC2 as axes next to each other,
+where points of the first are colored with class from the original data set and
+those of others with cluster from the kmeans clustering.
+
+```{r}
+# === k-means clustering and comparison with target cluster
+# 1. calculate the k-means clusters
+kmeans_clusters <- kmeans(baked_data[, c("PC1", "PC2")], centers = 2)$cluster
+
+# 2. Add kmeans_clusters as cluster
+baked_data %>%
+  mutate(cluster = as.factor(kmeans_clusters),
+         class = as.factor(if_else(class == 2, 1, 2))) %>%
+  pivot_longer(cols = c(class, cluster),
+               names_to = "grouping", values_to = "class") %>%
+  ggplot(aes(x = PC1, y = PC2, colour = class)) +
+  geom_point() +
+  facet_wrap(~ grouping)
+```
+
+### Prediction model
+
+Split the data into training (80 %) and test set (20 %).
+Use the same preprocessing as before but specify the formula
+with the target and predictors.
+Train a logistic regression model and a random forest.
+In the random forest, tune for all the three parameters using accuracy as the objective
+metric.
+Additionally, tune the number of components in PCA step in logistic regression,
+set it to 4 in random forest.
+After finalizing the models, report the accuracy and AUC for PR and ROC curves
+on the test set.
+
+```{r}
+data_split <- initial_split(data, prop = 0.8)
+training_set <- training(data_split)
+test_set <- testing(data_split)
+```
+
+```{r}
+recipe <- recipe(class ~ ., data = data) %>%
+  update_role(id_number, new_role = "id") %>%
+  step_normalize(all_predictors()) %>%
+  step_impute_knn(all_predictors(), neighbors = 10) %>%
+  step_pca(all_numeric_predictors(), num_comp = tune())
+
+# models
+log_reg <- logistic_reg() %>%
+  set_engine("glm")
+
+rf <- rand_forest(mtry = tune(), trees = tune(), min_n = tune()) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("classification")
+
+# workflows
+wf_log <- workflow() %>%
+  add_recipe(recipe) %>%
+  add_model(log_reg)
+
+wf_rf <- workflow() %>%
+  add_recipe(recipe) %>%
+  add_model(rf)
+
+# hyperparameter opt
+set.seed(2025)
+folds <- vfold_cv(training_set, v = 10)
+par_grid <- grid_regular(mtry(range = c(2, 10)),
+                         trees(range = c(10, 50)),
+                         min_n(range = c(5, 35)),
+                         num_comp(range = c(4, 4)),
+                         levels = c(3, 3, 3, 1))
+tuned_rf <- tune_grid(wf_rf,
+                      grid = par_grid,
+                      resamples = folds,
+                      metrics = metric_set(accuracy))
+tuned_log <- tune_grid(wf_log,
+                       grid = grid_regular(num_comp(range = c(1, 10)),
+                                           levels = 5),
+                       resamples = folds,
+                       metrics = metric_set(accuracy))
+autoplot(tuned_rf)
+autoplot(tuned_log)
+```
+
+```{r}
+# Finalize workflows
+best_pars_rf <- select_best(tuned_rf, metric = "accuracy")
+best_pars_log <- select_best(tuned_log, metric = "accuracy")
+
+final_rf <- finalize_workflow(wf_rf, best_pars_rf)
+final_log <- finalize_workflow(wf_log, best_pars_log)
+
+last_fit(final_rf, split = data_split,
+         metrics = metric_set(accuracy, roc_auc, pr_auc)) %>%
+  collect_metrics()
+last_fit(final_log, split = data_split,
+         metrics = metric_set(accuracy, roc_auc, pr_auc)) %>%
+  collect_metrics()
+```
+

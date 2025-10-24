@@ -1,5 +1,5 @@
 ---
-title: "Task 2: Regression on Abalone Age"
+title: "Task 1: Regression on Abalone Age"
 author: "Tolga Tabanli"
 date: "2025-10-06"
 output: pdf_document
@@ -24,6 +24,8 @@ How about predicting it using other physical measurements?
 
 ## Split the data
 
+We first read the data:
+
 ```{r}
 library(tidyverse)
 library(tidymodels)
@@ -38,8 +40,8 @@ abalone_raw$rings <- abalone_raw$rings + 1.5
 
 ```
 
-First, create the data splits.
-We'll use seed `2025` to control randomness.
+Create the data splits.
+Use seed `2025` to control randomness.
 
 ```{r task1}
 set.seed(2025)
@@ -71,8 +73,8 @@ Hint: `geom_histogram()` with `fill` in its `aes` mapping and use `facet_wrap` w
 abalone_raw %>%
   rowid_to_column("id") %>%
   pivot_longer(cols = -c("id", "sex"), names_to = "variable", values_to = "value") %>%
-  ggplot(aes(x = value)) +
-    geom_histogram(aes(fill = sex), alpha = 0.5) +
+  ggplot(aes(x = value, fill = sex)) +
+    geom_histogram(alpha = 0.5) +
     facet_wrap(~ variable, scales = "free")
 ```
 
