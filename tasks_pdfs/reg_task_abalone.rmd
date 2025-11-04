@@ -1,0 +1,379 @@
+---
+title: "Regression Task - Abalone Age"
+author: "Tolga Tabanli"
+date: "2025-10-06"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+```
+
+# Intro
+
+Abalones are sea snails that have an extremely strong shell with a unique structure.
+Aside from having been a food source for thousands of years,
+it is also a source of inspiration to material scientists.
+However, they comprise a critically endangered species.
+Although age can be used to determine its price and quality,
+it is also biologically important for use in scientific aquaculture,
+population and conservation studies.
+Their age can be reliably determined counting the rings under a microscope
+after cutting through shell, staining. A time-consuming procedure.
+How about predicting it using other physical measurements?
+
+# Setup
+
+We first read the data:
+
+```{r, eval=F}
+library(tidyverse)
+library(tidymodels)
+
+abalone_raw <- read_csv("data/abalone.data",
+                        col_names = c("sex", "length", "diameter", "height",
+                                   "whole_weight", "shucked_weight", "viscera_weight",
+                                   "shell_weight", "rings"))
+
+# add 1.5 to ring number to get ages
+abalone_raw$rings <- abalone_raw$rings + 1.5
+
+```
+
+# Explore & visualize
+
+What are the columns? What kind of data types are there?
+Any initial hypotheses? Any apparent factors for if the data might be unbalanced?
+Use `glimpse` to have a look.
+
+```{r task2}
+# TODO
+glimpse(abalone_raw)
+```
+
+First let's see the data distributions for target and predictors.
+Use `pivot_longer` to collect variables under `variable` column with their values under `value` column.
+Plot **faceted** histograms using `ggplot2`.
+Stratify by sex to see if the data is unbalanced.
+this way, one can also see if the variable used for strata has any effect. \
+**Hint**: Use `geom_histogram()` with setting `fill` in the `aes` mapping to sex.
+Use `facet_wrap` with `scales = "free"` for facetting according to variables.
+
+```{r task3}
+# TODO
+abalone_raw %>%
+  pivot_longer(cols = -sex, names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram() +
+  facet_wrap(~ variable, scales = "free")
+```
+
+## Transformations
+
+Optional: Try out some transformations to reduce skewness of data. \
+**Hint:** You can use `mutate()` with `across()` to specify the columns
+and the function to transform. \
+Example: `data %>% mutate(across(YOUR_COLUMNS), function)` \
+or with a formula: `data %>% mutate(across(YOUR_COLUMNS), ~ .x^2)`
+
+```{r task4}
+# The variables `height`, `rings`, `shell_weight`, `shucked_weight`,
+# `viscera_weight` and `whole_weight` seem right-skewed, while `diameter` and `length`
+# are left-skewed. How can we transform these value so that they become relatively normal?
+
+abalone_raw %>%
+  mutate(across(c(`height`, `rings`, `shell_weight`, `shucked_weight`, `viscera_weight`, `whole_weight`), sqrt)) %>%
+  mutate(across(c(`diameter`, `length`), ~ .x^2)) %>%
+  pivot_longer(cols = -sex, names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram() +
+  facet_wrap(~ variable, scales = "free")
+```
+
+## Multicollinearity
+
+Now that we adjusted and decided on our transformations,
+next step is checking collinearity.
+Select numeric columns (exclude id), calculate correlation matrix by `cor()` and
+plot using `corrplot()`.
+
+```{r task5}
+# TODO
+abalone_raw %>%
+  select(-sex) %>%
+  cor() %>%
+  corrplot::corrplot()
+```
+
+In case of high collinearity, there are a couple of things one could apply, such as correlation filtering, PCA or opting for tree-based models etc.
+We are going to use this problem to explore and compare different models and effect of some hyperparameters using `tidymodels` framework.
+
+# Modelling and training
+
+## Data split
+
+Create the data split with 80 percent of data going.
+**Hint:** Use `initial_split()` to split data by setting 30 % of
+the observation aside for testing.
+Use the seed `2025` before the split for reproducibility.
+
+```{r task1}
+set.seed(2025)
+data_split <- initial_split(abalone_raw, prop=0.7)
+training_set <- training(data_split)
+testing_set <- testing(data_split)
+```
+
+Tree-based models are known for their "immunity" against the collinearity problem.
+Additionally, regularized regression models, such as ridge and lasso, are also good for increasing stability and interpretability of ordinary regression under highly correlated predictors and low sample sizes.
+`penalty` parameter allows to adjust the level of shrinkage (lambda) and mixture controls how these two models are used simultaneously (`mixture = 0` is ridge, `mixture = 1` is lasso).
+
+Here are some general considerations for preprocessing (not all might always apply):
+
+* handle missingness
+* handle skewness depending on prior exploration steps above. (You might need to check if there are negatives or zeros)
+* center & scale
+* eliminate near-zero variance features
+* eliminate extremely correlated variables
+* encode categorical variables as dummy or one-hot
+
+For tree-based models, we do not need the steps for transformation and normalization.
+Similarly, we are not concerned about the collinearity.
+
+## Your Task
+
+We define five subtasks:
+
+1. Basic linear regression, no preprocessing
+2. Basic linear regression with transformation
+3. Basic linear regression with transformation and PCA, tune for num_comps
+4. Elastic net regression, tune for penalty and mixture
+5. A random forest, tune for feature selection (mtry), number of trees (trees) and node size (min_n). Use importance by impurity.
+
+1. Specify the three recipes mentioned:
+
+    a. A base recipe: ignore sex by using `update_role`,
+    eliminate near zero variance features by `step_nzv`.
+      
+    b. Create new recipe based on a:
+    Perform transformations with `step_sqrt()` and `step_mutate()`.
+    Finally, `step_normalize()` on all numeric predictors.
+    
+    c. Create new recipe based on b:
+    Apply PCA on all numeric predictors with `step_pca()`.
+    Set the number of components to tune.
+
+2. Specify the 3 models:
+
+    a. linear_reg()
+  
+    b. linear_reg(penalty = tune(), mixture = tune()) with "glmnet" engine.
+  
+    c. rand_forest() with "ranger" engine and set importance to "impurity".
+  
+3. Create all 5 workflows by combining recipes and models, corresponding to the 5 subtasks.
+
+4. We have some models requiring hyperparameter tuning (subtasks 3-5). Create hyperparameter grids for them using `grid_regular()`.
+
+      **Example**:
+      
+```{r, eval=F}
+grid <- grid_regular(mtry(range = c(2,8)),
+                     trees(range = c(5, 70)),
+                     levels = c(4, 5))
+```
+      
+5. Perform hyperparameter tuning with grids using cross-validation using `vfold_cv()` and `tune_grid()`. Example:
+
+```{r, eval=F}
+cv_folds <- vfold_cv(train, v = 10)
+tuned_rf <- tune_grid(YOUR_WORKFLOW_OBJECT,
+                         resamples = cv_folds,
+                         grid = grid_rf,
+                         metrics = metric_set(mae, rmse, rsq))
+```
+
+6. Compare how hyperparameters affected performance in CV (**hint**: Use `autoplot()` on tuned objects.).
+
+Here you find a template to help you in the process:
+
+```{r task6, out.width="50%"}
+# === Recipes ===
+# a. Base recipe
+recipe_base <- recipe(rings ~ ., data = abalone_raw) %>%
+  step_nzv(all_numeric_predictors()) %>%
+  update_role(sex, new_role = "ignore")
+
+# b. Transformation recipe
+recipe_transform <- recipe_base %>%
+  step_sqrt(`height`, `rings`, `shell_weight`,
+            `shucked_weight`, `viscera_weight`, `whole_weight`) %>%
+  step_mutate(across(c(`diameter`, `length`), ~ .x^2)) %>%
+  step_normalize(all_numeric_predictors())
+
+# c. PCA recipe
+recipe_pca <- recipe_transform %>%
+  step_pca(all_numeric_predictors(), num_comp = tune())
+# ===============
+
+
+# === Models ===
+# basic linear regression
+linear_reg <- linear_reg() %>%
+  set_engine("lm")
+
+# Elastic net regression, tune for penalty and mixture
+elastic_net <- linear_reg(penalty = tune(), mixture = tune()) %>%
+  set_engine("glmnet")
+
+# Random forests
+rf <- rand_forest(mtry = tune(), trees = tune(), min_n = tune()) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("regression")
+# # ===============
+
+
+# === Workflows ===
+# 1. Basic reg, no preprocess
+wf_basic_reg <- workflow() %>%
+  add_recipe(recipe_base) %>%
+  add_model(linear_reg)
+
+# 2. Basic reg with transform preprocess
+wf_basic_transform <- workflow() %>%
+  add_recipe(recipe_transform) %>%
+  add_model(linear_reg)
+
+# 3. Basic reg with PCA
+wf_basic_pca <- workflow() %>%
+  add_recipe(recipe_pca) %>%
+  add_model(linear_reg)
+
+# 4. Elastic net
+wf_elastic <- workflow() %>%
+  add_recipe(recipe_transform) %>%
+  add_model(elastic_net)
+
+# 5. Random forests 
+wf_rf <- workflow() %>%
+  add_recipe(recipe_base) %>%
+  add_model(rf)
+# ===============
+
+
+# Hyperparameter grid search for 3-6
+grid_reg_pca <- grid_regular(num_comp(range = c(2, 7)),
+                             levels = 6)
+  
+grid_elastic <- grid_regular(penalty(range = c(-3, 3)),
+                             mixture(range = c(0, 1)),
+                              levels = c(5, 5))
+
+grid_rf <- grid_regular(mtry(range = c(2,7)),
+                        trees(range = c(5, 70)),
+                        min_n(range = c(10, 100)),
+                       levels = c(3, 3, 3))
+
+# === Cross-Validation ===
+set.seed(2025)
+folds <-  vfold_cv(training_set, v = 10)
+
+tuned_reg_pca <-  tune_grid(wf_basic_pca,
+                            resamples = folds,
+                            grid = grid_reg_pca,
+                            metrics = metric_set(mae))
+tuned_elastic <- tune_grid(wf_elastic,
+                            resamples = folds,
+                            grid = grid_elastic,
+                            metrics = metric_set(mae))
+tuned_rf <- tune_grid(wf_rf,
+                            resamples = folds,
+                            grid = grid_rf,
+                            metrics = metric_set(mae))
+# ========================
+
+# Plot tuning results using autoplot() here:
+autoplot(tuned_reg_pca)
+autoplot(tuned_elastic)
+autoplot(tuned_rf)
+```
+
+
+
+### Finalizing workflow
+
+Now that we have compared different models and tuned hyperparameters,
+we can select the best models where we did hyperparameter optimization and finalize workflow.
+These are done using exactly the same verbs in tidymodels as well!
+`select_best()` gives us the configuration of model parameters that have yielded the best performance.
+`finalize_workflow()` basically fills the gaps where we had set `tune()` with these best performing model settings.
+
+```{r task7}
+# Select best model for each workflow
+best_reg_pca <- select_best(tuned_reg_pca, metric = "mae")
+best_elastic <- select_best(tuned_elastic, metric = "mae")
+best_rf <- select_best(tuned_rf, metric = "mae")
+
+# Finalize the models
+final_reg_pca <- finalize_workflow(wf_basic_pca, parameters = best_reg_pca)
+final_elastic <- finalize_workflow(wf_elastic, parameters = best_elastic)
+final_rf <- finalize_workflow(wf_rf, parameters = best_rf)
+```
+
+Lastly, fit all the finalized workflows on the data_split using the metrics mae, rmse and rsq.
+Save the results in a named list for easy manipulation later.
+
+    Example:
+
+```{r, eval=F}
+last_fits <- list(
+  fit_reg = last_fit(wf_basic_reg, split = data_split,
+                           metrics = metric_set(mae, rmse, rsq)),
+  fit_reg_transform = last_fit(wf_basic_transform, split = data_split,
+                                metrics = metric_set(mae, rmse, rsq)),
+  fit_reg_pca = last_fit(final_reg_pca, split = data_split,
+                           metrics = metric_set(mae, rmse, rsq)),
+  fit_elastic = last_fit(final_elastic, split = data_split,
+                           metrics = metric_set(mae, rmse, rsq)),
+  fit_rf = last_fit(final_rf, split = data_split,
+                           metrics = metric_set(mae, rmse, rsq))
+  )
+```
+
+
+```{r task8}
+
+```
+
+Here is a ready-to-use code snippet to plot the metric comparison
+assuming you named your list of fit models as `last_fits`.
+
+```{r, eval = F}
+# Plot MAE metric
+mae_results <- map(last_fits, collect_metrics) %>%
+  list_rbind(names_to = "model")
+  
+mae_results %>%
+  ggplot(aes(x = model, y = .estimate)) +
+  geom_col() + 
+  facet_wrap(~ .metric, scales = "free", ncol = 2) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust=1))
+```
+
+Variable importance can be shown using random forest's internal mechanisms.
+We had used `importance = "impurity"` for this purpose.
+This is a model-based importance.
+
+Extract the fitted random forest model from your list by using `extract_fit_parsnip`.
+Use `vip()` from package `vip` on the fitted model to plot the importances.
+
+```{r task10}
+# we have already computed impurity in original model
+# we just need to extract the parsnip model
+
+# TODO
+extract_fit_parsnip(last_fits$fit_rf) %>%
+  vip()
+```
+
+
