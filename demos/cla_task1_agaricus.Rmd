@@ -1,0 +1,172 @@
+---
+title: "Classification - Task 1: Agaricus Lepiota"
+author: "Tolga Tabanli"
+date: "2025-10-15"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+```
+
+# Introduction
+
+Data set is loaded with the column names (.names file).
+We should always look at the raw data file to check for the correctness of
+the data format and how to handle it.
+We cast every column as a factor, since all the features are categorical
+and we thus let the data frame know of it as well.
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+
+data <- read_csv("data/agaricus-lepiota-expanded.data",
+                 col_names = c("edibility",
+                              "cap-shape", "cap-surface", "cap-color",
+                               "bruises", "odor", "gill-attachment", "gill-spacing",
+                               "gill-size", "gill-color", "stalk-shape", "stalk-root",
+                               "stalk-surface-above-ring", "stalk-surface-below-ring",
+                               "stalk-color-above-ring", "stalk-color-below-ring",
+                               "veil-type", "veil-color", "ring-number", "ring-type",
+                               "spore-print-color", "population", "habitat")) %>%
+  mutate(across(everything(), as.factor))
+```
+
+### Explore the data
+
+One way to understand the relationship of predictors with a nominal outcome is
+to plot proportions of levels of each feature "stratified" by outcome.
+Bring the data frame into long format by using `pivot_longer` on all the columns
+except edibility to collect the variables under a columns named "predictor" and
+the values under a column named "value".
+We need to then find the proportion of edibility for each value of each predictor.
+This is done by `count` on predictor, value, and edibility followed by `group_by`
+on predictor and value and finally create a new column named "prop" with `mutate`.
+Hint: `mutate(prop = n / sum(n))` gives the proportion of each row in its group (indicated by group_by).
+
+```{r, fig.width=10, fig.height=10, fig.retina=1}
+data %>%
+  pivot_longer(!edibility, names_to = "predictor", values_to = "value") %>%
+  count(predictor, value, edibility) %>%
+  group_by(predictor, value) %>%
+  mutate(prop = n / sum(n)) %>%
+  ggplot(aes(x = value, y = prop, fill = edibility)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~ predictor, scale = "free_x") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1))
+```
+
+
+### Data split
+
+Create the data split. 
+
+```{r}
+split_data <- initial_split(data, prop = 0.75)
+train <- training(split_data)
+test <- testing(split_data)
+```
+
+
+### Modelling
+
+We'll compare a single decision tree (engine: `rpart`) and random forests (engine: `ranger`).
+First, create a recipe to file variables with single values by using `step_nzv` with
+the parameter `unique_cut = 0`.
+In the random forest:
+Set number of trees, minimal node size and the number of randomly selected variables as hyperparameters to tune with `tune()`.
+Do not forget to set the mode in the both models.
+In the random forest's engine, set the `importance` to impurity to later
+compare the predictors in terms of their importance.
+Tune the hyperparameters with the seed 2025 and autoplot the results.
+
+```{r}
+# Preprocessing for logistic regression: drop singleton columns
+recipe <- recipe(edibility ~ ., data = train) %>%
+  step_nzv(all_predictors(), unique_cut = 0)
+
+# === Models ===
+dt <- decision_tree(cost_complexity = tune(),
+                    tree_depth = tune(),
+                    min_n = tune()) %>%
+  set_mode("classification") %>%
+  set_engine("rpart")
+
+rf <- rand_forest(mtry = tune(), trees = tune(), min_n = tune()) %>%
+  set_mode(mode = "classification") %>%
+  set_engine(engine = "ranger", importance = "impurity")
+
+# === Workflows ===
+wf_dt <- workflow() %>%
+  add_recipe(recipe) %>%
+  add_model(dt)
+
+wf_rf <- workflow() %>%
+  add_recipe(recipe) %>%
+  add_model(rf)
+
+# Tuning for random forest parameters
+set.seed(2025)
+folds <- vfold_cv(train, v = 10)
+tuned_rf <- tune_grid(wf_rf,
+                      resamples = folds,
+                      grid = grid_regular(mtry(range = c(2, 22)),
+                                          trees(range = c(5, 100)),
+                                          min_n(range = c(20, 200)),
+                                          levels = c(5, 4, 4)),
+                      metrics = metric_set(accuracy))
+tuned_dt <- tune_grid(wf_dt,
+                      resamples = vfold_cv(train, v = 10),
+                      grid = grid_regular(
+                        cost_complexity(range = c(-6, -1)),
+                        tree_depth(range = c(1, 10)),
+                        min_n(range = c(2, 20)),
+                        levels = c(4, 4, 3)),
+                      metrics = metric_set(accuracy))
+
+autoplot(tuned_rf)
+
+autoplot(tuned_dt)
+
+```
+
+### Finalize and fit
+
+Finalize the workflows with best performing hyperparameters.
+We can also visualize the decision tree with the help from rpart package:
+`rpart.plot::rpart.plot()` on the fitted model (which you get by
+1) extracting workflow, 2) extracting fitted parsnip model, 3) `pluck()`ing
+"fit" field.)
+
+```{r}
+final_rf <- finalize_model(rf, select_best(tuned_rf, metric = "accuracy"))
+fit_rf <- last_fit(final_rf, split = split_data, preprocessor = edibility ~ .,
+                   metrics = metric_set(accuracy))
+
+final_dt <- finalize_model(dt, select_best(tuned_dt, metric = "accuracy"))
+fit_dt <- last_fit(final_dt, split = split_data, preprocessor = edibility ~ .,
+                   metrics = metric_set(accuracy))
+
+fit_dt %>%
+  extract_workflow() %>%
+  extract_fit_parsnip() %>%
+  pluck("fit") %>%
+  rpart.plot::rpart.plot()
+```
+
+Show the metrics from the test set with `collect_metrics()`.
+
+```{r}
+collect_metrics(fit_dt)
+collect_metrics(fit_rf)
+```
+
+
+Investigate the importances of variables with `vip`.
+
+```{r}
+# library(vip)
+vip::vip(fit_rf$.workflow[[1]])
+```
+
